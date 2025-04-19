@@ -1,0 +1,60 @@
+-- جدول Users
+CREATE TABLE "Users" (
+    UserId SERIAL PRIMARY KEY,
+    Username VARCHAR(255) NOT NULL,
+    Email VARCHAR(255) NOT NULL UNIQUE,
+    Hashed_Password VARCHAR(255) NOT NULL,
+    Profile_Picture_Link TEXT,
+    Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Is_Private BOOLEAN DEFAULT FALSE
+);
+
+-- جدول Post
+CREATE TABLE Post (
+    PostId SERIAL PRIMARY KEY,
+    UserId INT NOT NULL,
+    Description TEXT,
+    Pic_Video_Link TEXT,
+    Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Is_Published BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (UserId) REFERENCES "Users"(UserId) ON DELETE CASCADE
+);
+
+-- جدول Comment
+CREATE TABLE "Comment" (
+    CommentId SERIAL PRIMARY KEY,
+    UserId INT NOT NULL,
+    PostId INT NOT NULL,
+    Context TEXT NOT NULL,
+    Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (UserId) REFERENCES "Users"(UserId) ON DELETE CASCADE,
+    FOREIGN KEY (PostId) REFERENCES Post(PostId) ON DELETE CASCADE
+);
+
+-- جدول Likes
+CREATE TABLE Likes (
+    LikeId SERIAL PRIMARY KEY,
+    UserId INT NOT NULL,
+    PostId INT NOT NULL,
+    FOREIGN KEY (UserId) REFERENCES "Users"(UserId) ON DELETE CASCADE,
+    FOREIGN KEY (PostId) REFERENCES Post(PostId) ON DELETE CASCADE
+);
+
+-- جدول Notification
+CREATE TABLE Notification (
+    NotifId SERIAL PRIMARY KEY,
+    UserId INT NOT NULL,
+    "Type" varchar(100),
+    PostLink TEXT,
+    FOREIGN KEY (UserId) REFERENCES "Users"(UserId) ON DELETE CASCADE
+);
+
+-- جدول Follower
+CREATE TABLE Follower (
+    FollowerId INT NOT NULL,
+    FollowingId INT NOT NULL,
+    Followed_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (FollowerId, FollowingId),
+    FOREIGN KEY (FollowerId) REFERENCES "Users"(UserId) ON DELETE CASCADE,
+    FOREIGN KEY (FollowingId) REFERENCES "Users"(UserId) ON DELETE CASCADE
+);
