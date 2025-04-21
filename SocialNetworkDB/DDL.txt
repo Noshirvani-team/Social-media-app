@@ -58,3 +58,12 @@ CREATE TABLE Follower (
     FOREIGN KEY (FollowerId) REFERENCES "Users"(UserId) ON DELETE CASCADE,
     FOREIGN KEY (FollowingId) REFERENCES "Users"(UserId) ON DELETE CASCADE
 );
+
+
+------Extra Queries------
+
+SELECT setval(
+  pg_get_serial_sequence('"Users"', 'userid'),
+  COALESCE(MAX("userid"), 1),
+  MAX("userid") IS NOT NULL
+) FROM "Users";

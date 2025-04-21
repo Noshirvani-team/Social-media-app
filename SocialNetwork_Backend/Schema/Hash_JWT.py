@@ -3,18 +3,25 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
+from pathlib import Path
+
 
 '''
 In This File We Use Extra File To Put Critical JWT Information In It And Load It From Outside The Program For More
 Safety And Secure... 
 '''
 
-load_dotenv()
+dotenv_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path)
+
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
+print("SECRET_KEY:", SECRET_KEY)
+print("ALGORITHM:", ALGORITHM)
+print("ACCESS_TOKEN_EXPIRE_MINUTES:", ACCESS_TOKEN_EXPIRE_MINUTES)
 
 
 

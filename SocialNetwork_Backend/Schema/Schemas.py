@@ -6,13 +6,14 @@ from typing import Optional
 try:
 
    class UserRegister(BaseModel):
-     UserName: str
-     EmailStr: EmailStr
+     Username: str
+     Email: EmailStr
      Password: str
      Profile_Picture_Link: Optional[str] = None
+     Is_Private:bool
 
    class UserLogin(BaseModel):
-       EmailStr: EmailStr
+       Email: EmailStr
        Password: str
 
 
