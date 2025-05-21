@@ -9,7 +9,7 @@ try:
      Username: str
      Email: EmailStr
      Password: str
-     Profile_Picture_Link: Optional[str] = None
+     Profile_Picture_Link: str | None = None
      Is_Private:bool
 
    class UserLogin(BaseModel):
