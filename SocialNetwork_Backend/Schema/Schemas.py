@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-
+from datetime import datetime
 try:
 
     #  User Schemas<<<<<>>>>>>
@@ -27,13 +27,14 @@ try:
         Pic_Video_Link: Optional[str] = None
         Is_Published: Optional[bool] = True
 
+
     class PostOut(BaseModel):
-        PostId: int
-        UserId: int
-        Description: Optional[str]
-        Pic_Video_Link: Optional[str]
-        Created_At: str
-        Is_Published: bool
+        postid: int
+        userid: int
+        description: Optional[str]
+        pic_video_link: Optional[str]
+        created_at: datetime
+        is_published: bool
 
         class Config:
             from_attributes = True
