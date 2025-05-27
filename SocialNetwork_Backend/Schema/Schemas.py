@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from pydantic import BaseModel, Field
 from datetime import datetime
 try:
 
@@ -22,23 +23,21 @@ try:
 
     # Post Schemas    <<<<<>>>>>
 
-    class PostCreate(BaseModel):
-        Description: Optional[str] = None
-        Pic_Video_Link: Optional[str] = None
-        Is_Published: Optional[bool] = True
+    class MongoPostCreate(BaseModel):
+        userid: int
+        description: Optional[str] = None
+        pic_video_link: Optional[str] = None
+        is_published: Optional[bool] = True
+        created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
 
-    class PostOut(BaseModel):
-        postid: int
+    class MongoPostOut(BaseModel):
+        postid: str
         userid: int
         description: Optional[str]
         pic_video_link: Optional[str]
         created_at: datetime
         is_published: bool
-
-        class Config:
-            from_attributes = True
-
 
     #Comment Schemas <<<<<<<>>>>>>>
 
