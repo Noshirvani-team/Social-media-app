@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from Schema.Model import Comment
 from Schema.Schemas import CommentOut,CommentCreate
+from io import BytesIO
 
 
 Model.Base.metadata.create_all(bind=engine)
@@ -117,7 +118,6 @@ def delete_post(post_id: int, current_user: Model.User = Depends(get_current_use
     if post.userid != current_user.userid:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    # حذف فایل از GridFS
     if post.pic_video_link:
         try:
             fs.delete(ObjectId(post.pic_video_link))
@@ -128,7 +128,6 @@ def delete_post(post_id: int, current_user: Model.User = Depends(get_current_use
     db.commit()
     return {"msg": "Post deleted"}
 
-@media_router.put("/posts/{post_id}")
 @media_router.put("/posts/{post_id}")
 def update_post(
     post_id: int,
@@ -187,8 +186,14 @@ def get_public_posts(db: Session = Depends(get_db)):
 def get_media(file_id: str):
     try:
         file = fs.get(ObjectId(file_id))
-        return StreamingResponse(file, media_type=file.content_type)
-    except Exception:
+
+        media_type = file.content_type
+
+        headers = {"Content-Disposition": f"inline; filename={file.filename}"}
+        return StreamingResponse(BytesIO(file.read()), media_type=media_type, headers=headers)
+
+    except Exception as e:
+        print(f"Error: {e}")
         raise HTTPException(status_code=404, detail="File not found")
 
 
@@ -245,11 +250,64 @@ def delete_comment(
     db.delete(comment)
     db.commit()
     return {"msg": "Comment deleted"}
+#_______________________________Likes_______________________________
+@media_router.post("/likes", response_model=Schemas.LikeOut)
+def create_like(
+        like: Schemas.LikeCreate,
+        db: Session = Depends(get_db),
+        current_user: Model.User = Depends(get_current_user)
+):
+    existing_like = db.query(Model.Like).filter(
+        Model.Like.userid == current_user.userid,
+        Model.Like.postid == like.PostId
+    ).first()
+
+    if existing_like:
+        raise HTTPException(status_code=400, detail="Post already liked")
+
+    new_like = Model.Like(userid=current_user.userid, postid=like.PostId)
+    db.add(new_like)
+    db.commit()
+    db.refresh(new_like)
+    return Schemas.LikeOut(LikeId=new_like.likeid, UserId=new_like.userid, PostId=new_like.postid)
+
+
+@media_router.delete("/likes/{like_id}")
+def delete_like(
+        like_id: int,
+        db: Session = Depends(get_db),
+        current_user: Model.User = Depends(get_current_user)
+):
+    like = db.query(Model.Like).filter(Model.Like.likeid == like_id).first()
+    if not like:
+        raise HTTPException(status_code=404, detail="Like not found")
+
+    if like.userid != current_user.userid:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this like")
+
+    db.delete(like)
+    db.commit()
+    return {"msg": "Like deleted"}
+
+
+@media_router.get("/likes/post/{post_id}", response_model=int)
+def get_likes_count_for_post(
+        post_id: int,
+        db: Session = Depends(get_db)
+):
+    likes_count = db.query(Model.Like).filter(Model.Like.postid == post_id).count()
+    return likes_count
+
+
+@media_router.get("/likes/user/{user_id}", response_model=int)
+def get_likes_count_for_user(
+        user_id: int,
+        db: Session = Depends(get_db)
+):
+    likes_count = db.query(Model.Like).filter(Model.Like.userid == user_id).count()
+    return likes_count
+
 #_______________________________Next Rout_______________________________
-
-
-
-
 
 
 #__________________________For Authentication___________________________
