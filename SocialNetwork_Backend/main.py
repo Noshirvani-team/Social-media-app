@@ -307,7 +307,86 @@ def get_likes_count_for_user(
     likes_count = db.query(Model.Like).filter(Model.Like.userid == user_id).count()
     return likes_count
 
-#_______________________________Next Rout_______________________________
+#_______________________________Following_______________________________
+@core_router.post("/follow", response_model=Schemas.FollowerOut)
+def follow_user(
+    follow: Schemas.FollowAction,
+    db: Session = Depends(get_db),
+    current_user: Model.User = Depends(get_current_user)
+):
+    if current_user.userid == follow.FollowingId:
+        raise HTTPException(status_code=400, detail="You cannot follow yourself")
+
+    existing = db.query(Model.Follower).filter(
+        Model.Follower.followerid == current_user.userid,
+        Model.Follower.followingid == follow.FollowingId
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Already following")
+
+    new_follow = Model.Follower(followerid=current_user.userid, followingid=follow.FollowingId)
+    db.add(new_follow)
+    db.commit()
+    db.refresh(new_follow)
+    return Schemas.FollowerOut(
+        FollowerId=new_follow.followerid,
+        FollowingId=new_follow.followingid,
+        Followed_At=str(new_follow.followed_at)
+    )
+
+@core_router.delete("/unfollow/{following_id}")
+def unfollow_user(
+    following_id: int,
+    db: Session = Depends(get_db),
+    current_user: Model.User = Depends(get_current_user)
+):
+    follow = db.query(Model.Follower).filter(
+        Model.Follower.followerid == current_user.userid,
+        Model.Follower.followingid == following_id
+    ).first()
+
+    if not follow:
+        raise HTTPException(status_code=404, detail="Not following this user")
+
+    db.delete(follow)
+    db.commit()
+    return {"msg": "Unfollowed"}
+
+@core_router.get("/followers/{user_id}", response_model=list[Schemas.FollowerOut])
+def get_followers(user_id: int, db: Session = Depends(get_db)):
+    followers = db.query(Model.Follower).filter(Model.Follower.followingid == user_id).all()
+    return [
+        Schemas.FollowerOut(
+            FollowerId=f.followerid,
+            FollowingId=f.followingid,
+            Followed_At=str(f.followed_at)
+        ) for f in followers
+    ]
+
+
+@core_router.get("/following/{user_id}", response_model=list[Schemas.FollowerOut])
+def get_following(user_id: int, db: Session = Depends(get_db)):
+    following = db.query(Model.Follower).filter(Model.Follower.followerid == user_id).all()
+    return [
+        Schemas.FollowerOut(
+            FollowerId=f.followerid,
+            FollowingId=f.followingid,
+            Followed_At=str(f.followed_at)
+        ) for f in following
+    ]
+
+@core_router.get("/follower/count/{user_id}", response_model=int)
+def count_followers(user_id: int, db: Session = Depends(get_db)):
+    count = db.query(Model.Follower).filter(Model.Follower.followingid == user_id).count()
+    return count
+
+@core_router.get("/following/count/{user_id}", response_model=int)
+def count_following(user_id: int, db: Session = Depends(get_db)):
+    count = db.query(Model.Follower).filter(Model.Follower.followerid == user_id).count()
+    return count
+
+#__________________________Next Rout___________________________________
 
 
 #__________________________For Authentication___________________________
