@@ -71,13 +71,14 @@ try:
     #Notification Schemas <<<<<<<<< >>>>>>>>>
 
     class NotificationOut(BaseModel):
-        NotifId: int
-        UserId: int
-        Type: Optional[str]
-        PostLink: Optional[str]
+        notifid: int
+        userid: int
+        type: Optional[str]
+        postlink: Optional[str]
 
         class Config:
             from_attributes = True
+
 
     #Follower Schemas <<<<<<<<>>>>>>>>
 

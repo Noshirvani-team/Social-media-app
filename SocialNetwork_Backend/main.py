@@ -13,6 +13,9 @@ from bson import ObjectId
 from Schema.Model import Comment
 from Schema.Schemas import CommentOut,CommentCreate
 from io import BytesIO
+from typing import Optional
+import json
+
 
 
 Model.Base.metadata.create_all(bind=engine)
@@ -37,11 +40,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+ADMIN_EMAILS = {"admin@secure.com"}
 
 def get_admin_user(current_user: Model.User = Depends(get_current_user)):
-    if not getattr(current_user, "is_admin", False):
+    if current_user.email not in ADMIN_EMAILS:
         raise HTTPException(status_code=403, detail="Only admins can access this route")
     return current_user
+
 
 
 @app.get("/")
@@ -60,6 +65,8 @@ def register(user: Schemas.UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed_pw = GetHashedPassword(user.Password)
+
+
     created_user = Model.User(
         username=user.Username,
         email=user.Email,
@@ -212,6 +219,17 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    post = db.query(Model.Post).filter(Model.Post.postid == comment.PostId).first()
+    if post and post.userid != current_user.userid:
+        notif = Model.Notification(
+            userid=post.userid,
+            type="comment",
+            postlink=f"/media/{post.pic_video_link}" if post.pic_video_link else None
+        )
+        db.add(notif)
+        db.commit()
+
     return CommentOut(
         CommentId=new_comment.commentid,
         UserId=new_comment.userid,
@@ -269,6 +287,17 @@ def create_like(
     db.add(new_like)
     db.commit()
     db.refresh(new_like)
+
+    post = db.query(Model.Post).filter(Model.Post.postid == like.PostId).first()
+    if post and post.userid != current_user.userid:
+        notif = Model.Notification(
+            userid=post.userid,
+            type="like",
+            postlink=f"/media/{post.pic_video_link}" if post.pic_video_link else None
+        )
+        db.add(notif)
+        db.commit()
+
     return Schemas.LikeOut(LikeId=new_like.likeid, UserId=new_like.userid, PostId=new_like.postid)
 
 
@@ -329,6 +358,15 @@ def follow_user(
     db.add(new_follow)
     db.commit()
     db.refresh(new_follow)
+
+    notif = Model.Notification(
+        userid=follow.FollowingId,
+        type="follow",
+        postlink=None
+    )
+    db.add(notif)
+    db.commit()
+
     return Schemas.FollowerOut(
         FollowerId=new_follow.followerid,
         FollowingId=new_follow.followingid,
@@ -386,7 +424,36 @@ def count_following(user_id: int, db: Session = Depends(get_db)):
     count = db.query(Model.Follower).filter(Model.Follower.followerid == user_id).count()
     return count
 
-#__________________________Next Rout___________________________________
+#__________________________Notif___________________________________
+@core_router.get("/notifications/all", response_model=list[Schemas.NotificationOut])
+def get_all_notifications(db: Session = Depends(get_db)):
+    notifications = db.query(Model.Notification).order_by(Model.Notification.notifid.desc()).all()
+    return notifications
+
+
+@core_router.post("/notifications/broadcast")
+def broadcast_notification(
+    message: str,
+    db: Session = Depends(get_db),
+    current_user: Model.User = Depends(get_admin_user)
+):
+    users = db.query(Model.User).all()
+
+    type_payload = json.dumps({
+        "type": "broadcast",
+        "message": message
+    })
+
+    for user in users:
+        notification = Model.Notification(
+            userid=user.userid,
+            type=type_payload,
+            postlink=None
+        )
+        db.add(notification)
+
+    db.commit()
+    return {"msg": f"Broadcasted to {len(users)} users"}
 
 
 #__________________________For Authentication___________________________

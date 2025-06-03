@@ -16,6 +16,9 @@ class User(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     is_private = Column(Boolean, default=False)
     likes = relationship("Like", back_populates="user")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete")
+    followers = relationship("Follower", foreign_keys="[Follower.followingid]", backref="followed")
+    following = relationship("Follower", foreign_keys="[Follower.followerid]", backref="follower")
 
 
 class Post(Base):
@@ -52,14 +55,17 @@ class Like(Base):
 class Notification(Base):
     __tablename__ = "Notification"
     notifid = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    userid = Column(Integer, nullable=False)
+    userid = Column(Integer, ForeignKey('Users.userid', ondelete="CASCADE"), nullable=False)
     type = Column(String(100))
     postlink = Column(Text, nullable=True)
+    user = relationship("User", back_populates="notifications")
+
+
 
 class Follower(Base):
     __tablename__ = "Follower"
-    followerid = Column(Integer, primary_key=False)
-    followingid = Column(Integer, primary_key=False)
+    followerid = Column(Integer, ForeignKey('Users.userid'), primary_key=True)
+    followingid = Column(Integer, ForeignKey('Users.userid'), primary_key=True)
     followed_at = Column(TIMESTAMP, server_default=func.now())
     __table_args__ = (
         PrimaryKeyConstraint('followerid', 'followingid'),
