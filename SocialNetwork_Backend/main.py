@@ -15,6 +15,8 @@ from Schema.Schemas import CommentOut,CommentCreate
 from io import BytesIO
 from typing import Optional
 import json
+from rabbitMQ.publisher import send_notification_to_queue
+
 
 
 
@@ -211,7 +213,7 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user: Model.User = Depends(get_current_user)
 ):
-    new_comment = Comment(
+    new_comment = Model.Comment(
         userid=current_user.userid,
         postid=comment.PostId,
         context=comment.Context
@@ -222,13 +224,11 @@ def create_comment(
 
     post = db.query(Model.Post).filter(Model.Post.postid == comment.PostId).first()
     if post and post.userid != current_user.userid:
-        notif = Model.Notification(
-            userid=post.userid,
-            type="comment",
-            postlink=f"/media/{post.pic_video_link}" if post.pic_video_link else None
-        )
-        db.add(notif)
-        db.commit()
+        send_notification_to_queue({
+            "userid": post.userid,
+            "type": "comment",
+            "postlink": f"/media/{post.pic_video_link}" if post.pic_video_link else None
+        })
 
     return CommentOut(
         CommentId=new_comment.commentid,
@@ -290,13 +290,11 @@ def create_like(
 
     post = db.query(Model.Post).filter(Model.Post.postid == like.PostId).first()
     if post and post.userid != current_user.userid:
-        notif = Model.Notification(
-            userid=post.userid,
-            type="like",
-            postlink=f"/media/{post.pic_video_link}" if post.pic_video_link else None
-        )
-        db.add(notif)
-        db.commit()
+        send_notification_to_queue({
+            "userid": post.userid,
+            "type": "like",
+            "postlink": f"/media/{post.pic_video_link}" if post.pic_video_link else None
+        })
 
     return Schemas.LikeOut(LikeId=new_like.likeid, UserId=new_like.userid, PostId=new_like.postid)
 
@@ -339,9 +337,9 @@ def get_likes_count_for_user(
 #_______________________________Following_______________________________
 @core_router.post("/follow", response_model=Schemas.FollowerOut)
 def follow_user(
-    follow: Schemas.FollowAction,
-    db: Session = Depends(get_db),
-    current_user: Model.User = Depends(get_current_user)
+        follow: Schemas.FollowAction,
+        db: Session = Depends(get_db),
+        current_user: Model.User = Depends(get_current_user)
 ):
     if current_user.userid == follow.FollowingId:
         raise HTTPException(status_code=400, detail="You cannot follow yourself")
@@ -354,18 +352,20 @@ def follow_user(
     if existing:
         raise HTTPException(status_code=400, detail="Already following")
 
-    new_follow = Model.Follower(followerid=current_user.userid, followingid=follow.FollowingId)
+    new_follow = Model.Follower(
+        followerid=current_user.userid,
+        followingid=follow.FollowingId
+    )
     db.add(new_follow)
     db.commit()
     db.refresh(new_follow)
 
-    notif = Model.Notification(
-        userid=follow.FollowingId,
-        type="follow",
-        postlink=None
-    )
-    db.add(notif)
-    db.commit()
+    if follow.FollowingId != current_user.userid:
+        send_notification_to_queue({
+            "userid": follow.FollowingId,
+            "type": "follow",
+            "postlink": None
+        })
 
     return Schemas.FollowerOut(
         FollowerId=new_follow.followerid,
